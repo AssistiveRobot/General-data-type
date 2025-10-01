@@ -1,0 +1,101 @@
+# Documentation: Sending Button State from Arduino to ROS
+
+## 1. Overview
+
+This setup allows an Arduino Uno to send the state of a push button to the ROS environment. The button state is published on a ROS topic (`/button_state`) as a `std_msgs/Bool` message. This enables ROS nodes to monitor physical button input from the Arduino.
+
+---
+
+## 2. Hardware Requirements
+
+* Arduino Uno (or compatible board)
+* Push button
+* Breadboard and jumper wires
+* USB cable (to connect Arduino to PC running ROS)
+
+**Wiring:**
+
+* Connect one side of the push button to **pin 5** on Arduino.
+* Connect the other side of the button to **GND**.
+* Arduino’s internal pull-up resistor is used, so no external resistor is required.
+
+---
+
+## 3. Arduino Code
+
+Upload the following code to the Arduino:
+
+```cpp
+#include <ros.h>
+#include <std_msgs/Bool.h>
+
+ros::NodeHandle nh;
+
+std_msgs::Bool button_msg;
+ros::Publisher pub("button_state", &button_msg);
+
+int buttonPin = 5;  // button connected here
+
+void setup() {
+  pinMode(buttonPin, INPUT_PULLUP); // button wired to GND + pin
+  nh.initNode();
+  nh.advertise(pub);
+}
+
+void loop() {
+  button_msg.data = (digitalRead(buttonPin) == LOW); // LOW = pressed
+  pub.publish(&button_msg);
+
+  nh.spinOnce();
+  delay(100);
+}
+```
+
+---
+
+## 4. ROS Side Setup
+
+### Step 1: Start ROS Master
+
+```bash
+roscore
+```
+
+### Step 2: Start rosserial to connect Arduino
+
+```bash
+rosrun rosserial_python serial_node.py _port:=/dev/ttyACM0 _baud:=57600
+```
+
+### Step 3: Check Available Topics
+
+```bash
+rostopic list
+```
+
+You should see:
+
+```
+/button_state
+/rosout
+```
+
+### Step 4: View Button Data
+
+```bash
+rostopic echo /button_state
+```
+
+When pressing the button, output toggles between:
+
+```
+data: True
+---
+data: False
+```
+
+---
+
+## 5. Result
+
+The Arduino successfully publishes the button state to ROS. Any ROS node can subscribe to `/button_state` to react to physical button presses.
